@@ -53,13 +53,18 @@ public class BackEnd {
 			this.password = Settings.getMysqlPass();
 
 			HikariConfig hikariConfig = new HikariConfig();
-			hikariConfig.setJdbcUrl(this.dsn);
+			hikariConfig.setJdbcUrl(MySqlTimeouts.applyDefaults(this.dsn,
+				Settings.getMysqlConnectTimeout(), Settings.getMysqlSocketTimeout()));
 			hikariConfig.setUsername(this.username);
 			hikariConfig.setPassword(this.password);
 			hikariConfig.setPoolName("iConomyUnlocked-MySQL");
 			hikariConfig.setMaximumPoolSize(Math.max(2, Settings.getMysqlPoolSize()));
-			hikariConfig.setMinimumIdle(Math.min(2, hikariConfig.getMaximumPoolSize()));
-			hikariConfig.setConnectionTimeout(8000L);
+			// Allow all unused connections to retire, including low-traffic servers.
+			hikariConfig.setMinimumIdle(0);
+			hikariConfig.setIdleTimeout(30000L);
+			hikariConfig.setMaxLifetime(600000L);
+			hikariConfig.setValidationTimeout(1000L);
+			hikariConfig.setConnectionTimeout(Settings.getMysqlPoolTimeout());
 			hikariConfig.setInitializationFailTimeout(-1L);
 			hikariConfig.addDataSourceProperty("cachePrepStmts", "true");
 			hikariConfig.addDataSourceProperty("prepStmtCacheSize", "250");
@@ -73,7 +78,7 @@ public class BackEnd {
 
 	/**
 	 * Create the accounts table if it doesn't exist already.
-	 * 
+	 *
 	 * @throws Exception
 	 */
 	public void setupAccountTable() throws Exception {
@@ -82,51 +87,53 @@ public class BackEnd {
 		PreparedStatement ps = null;
 		ResultSet rs = null;
 
-		switch (dbType) {
-		case H2:
-			try {
-				ps = conn.prepareStatement(
-					"CREATE TABLE " + SQLTable + "("
-						+ "id INT auto_increment PRIMARY KEY,"
-						+ "uuid VARCHAR(36) UNIQUE,"
-						+ "username VARCHAR(32),"
-						+ "balance DECIMAL (64, 2),"
-						+ "hidden BOOLEAN NOT NULL DEFAULT '0'"
-						+ ");"
-					);
-				ps.executeUpdate();
-			} catch (SQLException ignored) {}
-			break;
-
-		case MYSQL:
-			DatabaseMetaData dbm = conn.getMetaData();
-			rs = dbm.getTables(null, null, SQLTable, null);
-
-			if (!rs.next()) {
-				log.info("Creating table: " + SQLTable);
-				ps = conn.prepareStatement(
-					"CREATE TABLE " + SQLTable + " ("
-						+ "`id` INT(10) NOT NULL AUTO_INCREMENT,"
-						+ "`uuid` VARCHAR(36) NOT NULL,"
-						+ "`username` VARCHAR(32) NOT NULL,"
-						+ "`balance` DECIMAL(64, 2) NOT NULL,"
-						+ "`hidden` BOOLEAN NOT NULL DEFAULT '0',"
-						+ "PRIMARY KEY (`id`),"
-						+ "UNIQUE(`uuid`)"
-						+ ")"
-					);
-				if (ps != null) {
+		try {
+			switch (dbType) {
+			case H2:
+				try {
+					ps = conn.prepareStatement(
+						"CREATE TABLE " + SQLTable + "("
+							+ "id INT auto_increment PRIMARY KEY,"
+							+ "uuid VARCHAR(36) UNIQUE,"
+							+ "username VARCHAR(32),"
+							+ "balance DECIMAL (64, 2),"
+							+ "hidden BOOLEAN NOT NULL DEFAULT '0'"
+							+ ");"
+						);
 					ps.executeUpdate();
-					log.info("Table Created.");
+				} catch (SQLException ignored) {}
+				break;
+
+			case MYSQL:
+				DatabaseMetaData dbm = conn.getMetaData();
+				rs = dbm.getTables(null, null, SQLTable, null);
+
+				if (!rs.next()) {
+					log.info("Creating table: " + SQLTable);
+					ps = conn.prepareStatement(
+						"CREATE TABLE " + SQLTable + " ("
+							+ "`id` INT(10) NOT NULL AUTO_INCREMENT,"
+							+ "`uuid` VARCHAR(36) NOT NULL,"
+							+ "`username` VARCHAR(32) NOT NULL,"
+							+ "`balance` DECIMAL(64, 2) NOT NULL,"
+							+ "`hidden` BOOLEAN NOT NULL DEFAULT '0',"
+							+ "PRIMARY KEY (`id`),"
+							+ "UNIQUE(`uuid`)"
+							+ ")"
+						);
+					if (ps != null) {
+						ps.executeUpdate();
+						log.info("Table Created.");
+					}
 				}
+				break;
+
+			default:
+				break;
 			}
-			break;
-
-		default:
-			break;
+		} finally {
+			close(conn, ps, rs);
 		}
-
-		close(conn, ps, rs);
 	}
 
 	public void setupTransactionTable() throws Exception {
@@ -136,57 +143,60 @@ public class BackEnd {
 		Connection conn = getConnection();
 		PreparedStatement ps = null;
 		ResultSet rs = null;
-		switch (dbType) {
-		case H2:
-			try {
-				ps = conn.prepareStatement(
-					"CREATE TABLE " + SQLTable + "_Transactions(" 
-							+ "id INT AUTO_INCREMENT PRIMARY KEY, " 
-							+ "account_from TEXT, " 
-							+ "account_to TEXT, " 
-							+ "account_from_balance DECIMAL(64, 2), " 
-							+ "account_to_balance DECIMAL(64, 2), " 
-							+ "timestamp TEXT, " 
-							+ "set DECIMAL(64, 2), " 
-							+ "gain DECIMAL(64, 2), " 
-							+ "loss DECIMAL(64, 2)" 
-							+ ");"
-					);
-
-					ps.executeUpdate();
-				} catch (SQLException ignored) {}
-			break;
-		case MYSQL:
-			DatabaseMetaData dbm = conn.getMetaData();
-			rs = dbm.getTables(null, null, SQLTable + "_Transactions", null);
-			if (!rs.next()) {
-				log.info("Creating logging database.. [" + SQLTable + "_Transactions]");
-				ps = conn.prepareStatement(
-						"CREATE TABLE " + SQLTable + "_Transactions ("
-								+ "`id` INT(255) NOT NULL AUTO_INCREMENT, "
-								+ "`account_from` TEXT NOT NULL, "
-								+ "`account_to` TEXT NOT NULL, "
-								+ "`account_from_balance` DECIMAL(65, 2) NOT NULL, " 
-								+ "`account_to_balance` DECIMAL(65, 2) NOT NULL, "
-								+ "`timestamp` TEXT NOT NULL, "
-								+ "`set` DECIMAL(65, 2) NOT NULL, "
-								+ "`gain` DECIMAL(65, 2) NOT NULL, "
-								+ "`loss` DECIMAL(65, 2) NOT NULL, "
-								+ "PRIMARY KEY (`id`)"
+		try {
+			switch (dbType) {
+			case H2:
+				try {
+					ps = conn.prepareStatement(
+						"CREATE TABLE " + SQLTable + "_Transactions("
+								+ "id INT AUTO_INCREMENT PRIMARY KEY, "
+								+ "account_from TEXT, "
+								+ "account_to TEXT, "
+								+ "account_from_balance DECIMAL(64, 2), "
+								+ "account_to_balance DECIMAL(64, 2), "
+								+ "timestamp TEXT, "
+								+ "set DECIMAL(64, 2), "
+								+ "gain DECIMAL(64, 2), "
+								+ "loss DECIMAL(64, 2)"
 								+ ");"
 						);
-				if (ps != null) {
-					ps.executeUpdate();
-					log.info("Logging Table Created.");
-				}
-			}
-			break;
-		default:
-			throw new Exception("Unknown DB type set in config.yml: " + Settings.getDBType() + ", log unable to start!");
-		}
 
-		log.info("Logging enabled.");
-		close(conn, ps, rs);
+						ps.executeUpdate();
+					} catch (SQLException ignored) {}
+				break;
+			case MYSQL:
+				DatabaseMetaData dbm = conn.getMetaData();
+				rs = dbm.getTables(null, null, SQLTable + "_Transactions", null);
+				if (!rs.next()) {
+					log.info("Creating logging database.. [" + SQLTable + "_Transactions]");
+					ps = conn.prepareStatement(
+							"CREATE TABLE " + SQLTable + "_Transactions ("
+									+ "`id` INT(255) NOT NULL AUTO_INCREMENT, "
+									+ "`account_from` TEXT NOT NULL, "
+									+ "`account_to` TEXT NOT NULL, "
+									+ "`account_from_balance` DECIMAL(65, 2) NOT NULL, "
+									+ "`account_to_balance` DECIMAL(65, 2) NOT NULL, "
+									+ "`timestamp` TEXT NOT NULL, "
+									+ "`set` DECIMAL(65, 2) NOT NULL, "
+									+ "`gain` DECIMAL(65, 2) NOT NULL, "
+									+ "`loss` DECIMAL(65, 2) NOT NULL, "
+									+ "PRIMARY KEY (`id`)"
+									+ ");"
+							);
+					if (ps != null) {
+						ps.executeUpdate();
+						log.info("Logging Table Created.");
+					}
+				}
+				break;
+			default:
+				throw new Exception("Unknown DB type set in config.yml: " + Settings.getDBType() + ", log unable to start!");
+			}
+
+			log.info("Logging enabled.");
+		} finally {
+			close(conn, ps, rs);
+		}
 	}
 
 	public JdbcConnectionPool connectionPool() {
@@ -267,3 +277,4 @@ public class BackEnd {
 			} catch (SQLException ignored) {}
 	}
 }
+

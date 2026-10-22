@@ -39,6 +39,17 @@ iConomyUnlockedは、iConomy 5を使い続けているサーバーに移行先�
 ### 必要なもの
 - [VaultUnlocked](https://github.com/TheNewEconomy/VaultUnlocked) または Vault
 
+### DB待ち時間と集計コマンド
+
+- `/money top` と `/money stats` は専用ワーカーでDBを読み、結果だけをサーバー側のスケジューラで表示します。FoliaではプレイヤーのEntityScheduler、コンソールのGlobalRegionSchedulerを使います。
+- 同じ送信者の要求は1件まで、ワーカーの待ち行列は32件までです。DB障害を「口座なし」「空のランキング」として表示しません。
+- `database.mysql.connect_timeout_ms`（既定2000）と `socket_timeout_ms`（既定3000）を追加しました。既存の `database.mysql.flags` に同名のConnector/J設定がある場合はそちらを優先します。明示的な `0` は無制限のままです。
+- `database.mysql.pool_timeout_ms`（既定2000、最小250）はプールから接続を借りる待ち時間です。通信タイムアウトとは別の設定です。
+- HikariCPの未使用接続を減らせるよう `minimumIdle=0`、`idleTimeout=30秒`、`maxLifetime=10分` としています。回収時刻にはHikariCPの管理周期による幅があります。DB側の `wait_timeout` が極端に短い場合まで警告の消失を保証するものではありません。
+- 入出金・Vault連携は同期処理です。今回の変更は経済処理全体の非同期化ではなく、通信待ちの制限と読み取り専用集計の非同期化です。
+
+テスト: JDK 17以上で `mvn test`。実際のMariaDB接続、Paper/Spigot/Folia上の表示と停止動作は別途確認してください。
+
 ----
 ### コマンド
 > <> は必須、[] は任意
@@ -87,3 +98,4 @@ iConomy.rank:
 iConomy.list:
   default: op
 ```
+

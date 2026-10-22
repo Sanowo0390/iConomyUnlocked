@@ -1,8 +1,6 @@
 package io.github.townyadvanced.iconomy.commands;
 
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -388,31 +386,11 @@ public class MoneyCommand implements TabExecutor {
 	private void parseMoneyStatsCommand(CommandSender sender) {
 		if (!Permissions.hasPermission(sender, "iConomy.admin.stats"))
 			return;
-
-		Collection<Double> accountHoldings = iConomyUnlocked.getAccounts().values();
-		if (accountHoldings == null) {
-			Messaging.sendErrorMessage(sender, "Could not fetch account stats, check the console for errors.");
-			return;
-		}
-
-		double TCOH = 0.0D;
-		int totalAccounts = accountHoldings.size();
-
-		for (Double balance : accountHoldings)
-			TCOH += balance.doubleValue();
-
-		// Avoid a divide-by-zero (NaN/Infinity display) when the server has
-		// zero accounts, e.g. right after installing the plugin.
-		double average = totalAccounts == 0 ? 0.0D : TCOH / totalAccounts;
-
-		Messaging.send(sender, LangStrings.statsHeader());
-		Messaging.send(sender, LangStrings.statsTotal(Settings.getCurrencyName(), Settings.format(TCOH)));
-		Messaging.send(sender, LangStrings.statsAverage(Settings.getCurrencyName(), Settings.format(average)));
-		Messaging.send(sender, LangStrings.statsAccounts(String.valueOf(totalAccounts)));
+		iConomyUnlocked.getReadCommands().stats(sender);
 	}
 
 	private void parseMoneyTopCommand(Player player, CommandSender sender, String[] args) {
-		if (!Permissions.hasPermission(player, "iConomy.list"))
+		if (!Permissions.hasPermission(sender, "iConomy.list"))
 			return;
 
 		if (args.length == 0) {
@@ -429,20 +407,7 @@ public class MoneyCommand implements TabExecutor {
 	}
 
 	private void showTop(CommandSender viewing, int amount) {
-		LinkedHashMap<String, Double> ranking = iConomyUnlocked.getAccounts().ranking(amount);
-
-		Messaging.send(viewing, LangStrings.topHeader(String.valueOf(amount)));
-
-		if (ranking == null || ranking.isEmpty()) {
-			Messaging.send(viewing, LangStrings.topEmpty());
-			return;
-		}
-
-		int count = 1;
-		for (String account : ranking.keySet()) {
-			Messaging.send(viewing, LangStrings.topLine(String.valueOf(count), account, Settings.format(ranking.get(account))));
-			count++;
-		}
+		iConomyUnlocked.getReadCommands().showTop(viewing, amount);
 	}
 
 	private void parseMoneyPlayerName(CommandSender sender, String name) throws CommandException {
@@ -581,3 +546,4 @@ public class MoneyCommand implements TabExecutor {
 		}
 	}
 }
+

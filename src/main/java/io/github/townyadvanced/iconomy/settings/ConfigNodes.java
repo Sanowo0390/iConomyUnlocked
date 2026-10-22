@@ -71,6 +71,13 @@ public enum ConfigNodes {
 			"",
 			"# The maximum number of pooled MySQL connections."),
 
+	DATABASE_MYSQL_CONNECT_TIMEOUT("database.mysql.connect_timeout_ms",
+			"2000", "", "# TCP connection timeout in milliseconds. Minimum 1; flags take precedence."),
+	DATABASE_MYSQL_SOCKET_TIMEOUT("database.mysql.socket_timeout_ms",
+			"3000", "", "# Socket read timeout in milliseconds. Minimum 1; flags take precedence."),
+	DATABASE_MYSQL_POOL_TIMEOUT("database.mysql.pool_timeout_ms",
+			"2000", "", "# Maximum wait for a pooled connection in milliseconds. Minimum 250."),
+
 	CURRENCY_VAULT_DISPLAYED_DECIMAL_PLACES("currency_settings.vault_displayed_decimal_places",
 			"0",
 			"",
@@ -130,3 +137,4 @@ public enum ConfigNodes {
 	}
 
 }
+
