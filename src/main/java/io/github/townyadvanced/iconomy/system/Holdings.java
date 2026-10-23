@@ -87,6 +87,7 @@ public class Holdings {
 
 		Connection conn = null;
 		PreparedStatement ps = null;
+		iConomyUnlocked.getAccounts().beginBalanceWrite();
 		try {
 			conn = iConomyUnlocked.getBackEnd().getConnection();
 			ps = conn.prepareStatement("UPDATE " + SQLTable + " SET balance = ? WHERE username = ?");
@@ -98,6 +99,7 @@ public class Holdings {
 			log.warning("Failed to set holdings: " + ex);
 		} finally {
 			iConomyUnlocked.getBackEnd().close(conn, ps);
+			iConomyUnlocked.getAccounts().endBalanceWrite();
 		}
     }
 

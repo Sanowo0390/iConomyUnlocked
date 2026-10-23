@@ -43,6 +43,9 @@ public enum ConfigNodes {
 			"iConomyUnlocked",
 			"",
 			"# The name of the database table."),
+	DATABASE_BALANCE_READ_CACHE("database.balance_read_cache_ms",
+			"250", "", "# Vault balance/existence read cache lifetime in milliseconds. 0 disables it.",
+			"# Local writes invalidate immediately; external writers are visible after expiry."),
 	DATABASE_MYSQL_ROOT("database.mysql","","",
 			"# MySQL settings (unused by H2.)"),
 	

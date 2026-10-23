@@ -193,6 +193,10 @@ public class Settings {
 		return Math.max(1, getInt(ConfigNodes.DATABASE_MYSQL_SOCKET_TIMEOUT));
 	}
 
+	public static int getBalanceReadCacheMillis() {
+		return Math.max(0, getInt(ConfigNodes.DATABASE_BALANCE_READ_CACHE));
+	}
+
 	public static int getMysqlPoolTimeout() {
 		return Math.max(250, getInt(ConfigNodes.DATABASE_MYSQL_POOL_TIMEOUT));
 	}

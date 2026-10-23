@@ -138,12 +138,14 @@ public class VaultEconomy implements Economy {
         Player player = Bukkit.getPlayerExact(playerName);
         if (player == null)
         	return 0.0;
-        return iConomyUnlocked.getAccounts().get(playerName).getHoldings().balance();
+        Double balance = iConomyUnlocked.getAccounts().readBalance(playerName);
+        return balance == null ? 0.0 : balance;
     }
 
     @Override
     public double getBalance(OfflinePlayer player) {
-        return iConomyUnlocked.getAccounts().get(player.getUniqueId()).getHoldings().balance();
+        Double balance = iConomyUnlocked.getAccounts().readBalance(player.getUniqueId());
+        return balance == null ? 0.0 : balance;
     }
 
     @Override
@@ -193,13 +195,13 @@ public class VaultEconomy implements Economy {
     @Override
     public boolean hasAccount(String playerName) {
 
-        return iConomyUnlocked.getAccounts().exists(playerName);
+        return iConomyUnlocked.getAccounts().readBalance(playerName) != null;
     }
 
     @Override
     public boolean hasAccount(OfflinePlayer player) {
 
-        return iConomyUnlocked.getAccounts().exists(player.getUniqueId());
+        return iConomyUnlocked.getAccounts().readBalance(player.getUniqueId()) != null;
     }
 
     @Override

@@ -99,3 +99,23 @@ iConomy.list:
   default: op
 ```
 
+
+### ショップのページ切替で発生するVault残高照会
+
+Vault / VaultUnlocked の `getBalance`・`has`・`hasAccount` は、口座存在確認と残高取得を `SELECT balance ... LIMIT 1` で行います。以前の残高取得は口座検索・名前/UUID取得・存在再確認・残高取得で計4回のSQLを実行していました。
+
+- `database.balance_read_cache_ms`（既定250、0で無効）で、同じUUIDまたは同じ名前の照会結果を短時間再利用します。設定変更は再起動後に反映します。
+- キャッシュは最大4096件、UUIDと名前は別キーです。Bedrockのドット付き名前を変更せず検索します。
+- このプラグインによる残高変更、口座作成・削除・改名・インポート・一括削除の前後に全照会キャッシュを破棄します。書き込み中と、書き込みにまたがった読み取り結果は保存しません。欠損口座やSQLエラーも保存しません。
+- 購入時の `withdraw` / `withdrawPlayer` と `Holdings` の残高確認・更新は従来通りDBを直接使います。入出金の非同期化・書き込みの遅延は行いません。
+- 別サーバーや外部SQLから同じDBを更新する場合、照会結果には設定時間までの遅れが生じます。即時反映が必要な構成では0にしてください。
+- 初回・期限切れ時のSQLは同期処理です。`/shop` 側のアイテム生成などは対象外で、実際のMSPT改善量は未計測です。
+
+検証: `mvn test`。キャッシュ単体はJDKだけでも次のコマンドで検証できます。
+
+```sh
+javac --release 17 -d target/cache-checks src/main/java/io/github/townyadvanced/iconomy/system/BalanceReadCache.java src/test/java/io/github/townyadvanced/iconomy/system/BalanceReadCacheChecks.java
+java -cp target/cache-checks io.github.townyadvanced.iconomy.system.BalanceReadCacheChecks
+```
+
+実機では、同じショップ・同じ人数でページ連打時のsparkプロファイルとMSPTを修正前後で比較してください。併せて購入・売却直後の残高表示、資金不足時の購入拒否、送金・管理者の残高変更直後の表示、改名・口座削除後の再照会も確認してください。
