@@ -21,6 +21,21 @@ public class Accounts {
 
 	Logger log = iConomyUnlocked.getPlugin().getLogger();
 	private String SQLTable = Settings.getDBTable();
+	private final BalanceReadCache balanceReads = new BalanceReadCache(
+		iConomyUnlocked.getBackEnd()::getConnection, SQLTable, Settings.getBalanceReadCacheMillis());
+
+	/** Vault display/affordability reads only; transaction Holdings bypass this cache. */
+	public Double readBalance(Object key) {
+		try {
+			return balanceReads.read(key);
+		} catch (Exception error) {
+			log.log(Level.WARNING, "Failed to read account balance for " + key, error);
+			return null;
+		}
+	}
+
+	public void beginBalanceWrite() { balanceReads.beginWrite(); }
+	public void endBalanceWrite() { balanceReads.endWrite(); }
 
 	/**
 	 * Check if an Account exists with this uuid.
@@ -86,6 +101,7 @@ public class Accounts {
     public boolean create(UUID uuid, String name) {
         Connection conn = null;
         PreparedStatement ps = null;
+        beginBalanceWrite();
         try {
             conn = iConomyUnlocked.getBackEnd().getConnection();
             ps = conn.prepareStatement("INSERT INTO " + SQLTable + "(uuid, username, balance, hidden) VALUES (?, ?, ?, 0)");
@@ -98,6 +114,7 @@ public class Accounts {
             return false;
         } finally {
         	iConomyUnlocked.getBackEnd().close(conn, ps);
+            endBalanceWrite();
         }
         return true;
     }
@@ -131,6 +148,7 @@ public class Accounts {
 
         Connection conn = null;
         PreparedStatement ps = null;
+        beginBalanceWrite();
         try {
             conn = iConomyUnlocked.getBackEnd().getConnection();
             ps = conn.prepareStatement("INSERT INTO " + SQLTable + "(uuid, username, balance, hidden) VALUES (?, ?, ?, ?)");
@@ -144,6 +162,7 @@ public class Accounts {
             return false;
         } finally {
         	iConomyUnlocked.getBackEnd().close(conn, ps);
+            endBalanceWrite();
         }
         return true;
     }
@@ -158,6 +177,7 @@ public class Accounts {
     public boolean remove(UUID uuid) {
         Connection conn = null;
         PreparedStatement ps = null;
+        beginBalanceWrite();
         try {
             conn = iConomyUnlocked.getBackEnd().getConnection();
             ps = conn.prepareStatement("DELETE FROM " + SQLTable + " WHERE uuid = ?");
@@ -168,6 +188,7 @@ public class Accounts {
             return false;
         } finally {
         	iConomyUnlocked.getBackEnd().close(conn, ps);
+            endBalanceWrite();
         }
         return true;
     }
@@ -181,6 +202,7 @@ public class Accounts {
     public boolean removeCompletely(String name) {
         Connection conn = null;
         PreparedStatement ps = null;
+        beginBalanceWrite();
         try {
             conn = iConomyUnlocked.getBackEnd().getConnection();
             ps = conn.prepareStatement("DELETE FROM " + SQLTable + " WHERE username = ?");
@@ -191,6 +213,7 @@ public class Accounts {
             return false;
         } finally {
         	iConomyUnlocked.getBackEnd().close(conn, ps);
+            endBalanceWrite();
         }
         return true;
     }
@@ -203,6 +226,7 @@ public class Accounts {
     public boolean purge() {
         Connection conn = null;
         PreparedStatement ps = null;
+        beginBalanceWrite();
         try {
             conn = iConomyUnlocked.getBackEnd().getConnection();
             ps = conn.prepareStatement("DELETE FROM " + SQLTable + " WHERE balance = ?");
@@ -213,6 +237,7 @@ public class Accounts {
             return false;
         } finally {
         	iConomyUnlocked.getBackEnd().close(conn, ps);
+            endBalanceWrite();
         }
         return true;
     }
@@ -226,6 +251,7 @@ public class Accounts {
     public boolean emptyDatabase() {
         Connection conn = null;
         PreparedStatement ps = null;
+        beginBalanceWrite();
         try {
             conn = iConomyUnlocked.getBackEnd().getConnection();
             ps = conn.prepareStatement("TRUNCATE TABLE " + SQLTable);
@@ -235,6 +261,7 @@ public class Accounts {
             return false;
         } finally {
         	iConomyUnlocked.getBackEnd().close(conn, ps);
+            endBalanceWrite();
         }
         return true;
     }

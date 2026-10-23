@@ -137,6 +137,7 @@ public class Account {
 	public boolean setHidden(boolean hidden) {
 		Connection conn = null;
 		PreparedStatement ps = null;
+		iConomyUnlocked.getAccounts().beginBalanceWrite();
 		try {
 			conn = iConomyUnlocked.getBackEnd().getConnection();
 
@@ -150,6 +151,7 @@ public class Account {
 			return false;
 		} finally {
 			iConomyUnlocked.getBackEnd().close(conn, ps);
+			iConomyUnlocked.getAccounts().endBalanceWrite();
 		}
 		return true;
 	}
@@ -201,6 +203,7 @@ public class Account {
 
 		Connection conn = null;
 		PreparedStatement ps = null;
+		iConomyUnlocked.getAccounts().beginBalanceWrite();
 		try {
 			conn = iConomyUnlocked.getBackEnd().getConnection();
 			ps = conn.prepareStatement("DELETE FROM " + SQLTable + " WHERE uuid = ?");
@@ -210,6 +213,7 @@ public class Account {
 			log.warning("Failed to remove account: " + ex);
 		} finally {
 			iConomyUnlocked.getBackEnd().close(conn, ps);
+			iConomyUnlocked.getAccounts().endBalanceWrite();
 		}
 	}
 
@@ -217,6 +221,7 @@ public class Account {
 		this.name = name;
 		Connection conn = null;
 		PreparedStatement ps = null;
+		iConomyUnlocked.getAccounts().beginBalanceWrite();
 		try {
 			conn = iConomyUnlocked.getBackEnd().getConnection();
 
@@ -230,6 +235,7 @@ public class Account {
 			return false;
 		} finally {
 			iConomyUnlocked.getBackEnd().close(conn, ps);
+			iConomyUnlocked.getAccounts().endBalanceWrite();
 		}
 		return true;
 	}

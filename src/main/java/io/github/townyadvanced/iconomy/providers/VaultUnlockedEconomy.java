@@ -8,7 +8,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import io.github.townyadvanced.iconomy.iConomyUnlocked;
 import io.github.townyadvanced.iconomy.settings.Settings;
@@ -130,7 +129,7 @@ public class VaultUnlockedEconomy implements Economy {
 
 	@Override
 	public boolean hasAccount(UUID accountID) {
-		return iConomyUnlocked.getAccounts().exists(accountID);
+		return iConomyUnlocked.getAccounts().readBalance(accountID) != null;
 	}
 
 	@Override
@@ -166,11 +165,8 @@ public class VaultUnlockedEconomy implements Economy {
 
 	@Override
 	public @NotNull BigDecimal getBalance(String pluginName, UUID accountID) {
-		@Nullable
-		Account account = Account.getAccount(accountID);
-		if (account == null)
-			return BigDecimal.ZERO;
-		return BigDecimal.valueOf(account.getHoldings().balance());
+		Double balance = iConomyUnlocked.getAccounts().readBalance(accountID);
+		return balance == null ? BigDecimal.ZERO : BigDecimal.valueOf(balance);
 	}
 
 	@Override
